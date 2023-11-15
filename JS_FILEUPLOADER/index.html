@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>File Upload</title>
+</head>
+<body>
+  <!-- The form for file uploads -->
+  <form>
+    <input type="file" id="file-input" name="files" multiple>
+    <input type="button" id="upload-button" value="Upload Files">
+  </form>
+
+  <!-- File names, sizes, and upload status -->
+  <div id="file-status"></div>
+
+  <!-- Data transferred -->
+  <div id="data-transferred">Data Transferred: <span id="transferred">0</span> MB / <span id="total-size">0</span> MB</div>
+
+  <!-- Progress Bar -->
+  <div id="progress-bar-container" style="width: 100%; background: #ddd; margin-top: 10px;">
+    <div id="progress-bar" style="width: 0%; height: 20px; background: #4CAF50;"></div>
+  </div>
+
+  <!-- The script for handling the file upload and updating the progress bar -->
+  <script>
+    // Define the calculateChunkSize function
+    function calculateChunkSize(fileSize) {
+      if (fileSize <= 100 * 1024 * 1024) { // For files <= 100MB
+        return fileSize; // Upload in one piece
+      } else if (fileSize <= 500 * 1024 * 1024) { // For files > 100MB and <= 500MB
+        return 20 * 1024 * 1024; // Use 20MB chunks
+      } else if (fileSize <= 1 * 1024 * 1024 * 1024) { // For files > 500MB and <= 1GB
+        return 50 * 1024 * 1024; // Use 50MB chunks
+      } else { // For files > 1GB
+        return 120 * 1024 * 1024; // Use 120MB chunks
+      }
+    }
+
+
+    // Initialize a transferredData array to keep track of the data transferred for each file
+    let transferredData = [];
+
+    document.getElementById('upload-button').addEventListener('click', function () {
+      const files = document.getElementById('file-input').files;
+      const fileStatusContainer = document.getElementById('file-status');
+      const totalSizeElement = document.getElementById('total-size');
+      const transferredElement = document.getElementById('transferred');
+      let totalSize = 0;
+
+      // Reset transferredData for new upload session
+      transferredData = new Array(files.length).fill(0);
+
+      // Clear previous file info and data transferred
+      fileStatusContainer.innerHTML = '';
+      transferredElement.textContent = '0';
+      totalSizeElement.textContent = '0';
+
+      // Calculate total size and display file names, sizes
+      for (let i = 0; i < files.length; i++) {
+        let fileSizeMB = (files[i].size / 1024 / 1024).toFixed(2);
+        fileStatusContainer.innerHTML += `<p id="file-${i}">${files[i].name} (Size: ${fileSizeMB} MB) - Waiting</p>`;
+        totalSize += files[i].size;
+      }
+      totalSizeElement.textContent = (totalSize / 1024 / 1024).toFixed(2);
+
+      // Function to upload a single file
+      function uploadFile(file, index) {
+        const fileSize = file.size;
+        const chunkSize = calculateChunkSize(fileSize);
+        const shouldChunk = fileSize > 100 * 1024 * 1024;
+        const totalChunks = shouldChunk ? Math.ceil(fileSize / chunkSize) : 1;
+        let currentChunkIndex = 0;
+
+        // Function to upload a single chunk or the whole file
+        function uploadChunk(chunkIndex) {
+          const startByte = chunkIndex * chunkSize;
+          const endByte = shouldChunk ? Math.min(fileSize, (chunkIndex + 1) * chunkSize) : fileSize;
+          const chunk = file.slice(startByte, endByte);
+          const formData = new FormData();
+          formData.append('chunk', chunk);
+          formData.append('chunkIndex', chunkIndex);
+          formData.append('totalChunks', totalChunks);
+          formData.append('fileIdentifier', file.name + '-' + file.size);
+
+          const request = new XMLHttpRequest();
+          request.open('POST', '/upload-chunk');
+
+          // Update the UI to show the file is being uploaded
+          const chunkText = shouldChunk ? ` - Uploading Chunk ${chunkIndex + 1} of ${totalChunks}` : '';
+          document.getElementById(`file-${index}`).textContent = `${file.name} (Size: ${(fileSize / 1024 / 1024).toFixed(2)} MB)${chunkText}`;
+
+          // Upload progress on request.upload
+          request.upload.addEventListener('progress', function (e) {
+            if (e.lengthComputable) {
+              transferredData[index] = chunkIndex * chunkSize + e.loaded;
+              let totalTransferred = transferredData.reduce((a, b) => a + b, 0);
+              let percentCompleted = (totalTransferred / totalSize) * 100;
+              document.getElementById('progress-bar').style.width = percentCompleted + '%';
+              transferredElement.textContent = (totalTransferred / 1024 / 1024).toFixed(2);
+            }
+          });
+
+          // When the chunk upload is complete
+          request.onload = function () {
+            if (request.status === 200) {
+              console.log(`Chunk ${chunkIndex + 1} of ${totalChunks} for file ${file.name} uploaded successfully.`);
+              currentChunkIndex++;
+              if (shouldChunk && currentChunkIndex < totalChunks) {
+                uploadChunk(currentChunkIndex);
+              } else {
+                document.getElementById(`file-${index}`).textContent = `${file.name} (Size: ${(fileSize / 1024 / 1024).toFixed(2)} MB) - Uploaded`;
+                if (index < files.length - 1) {
+                  uploadFile(files[index + 1], index + 1);
+                } else {
+                  document.getElementById('progress-bar').style.width = '100%';
+                  alert('All files have been uploaded successfully.');
+                }
+              }
+            } else {
+              console.error(`Error uploading chunk ${chunkIndex + 1}: ${request.statusText}`);
+              alert(`Error uploading chunk ${chunkIndex + 1}: ${request.statusText}`);
+            }
+          };
+
+          request.onerror = function () {
+            console.error(`Connection error while uploading chunk ${chunkIndex + 1}`);
+            alert(`Connection error while uploading chunk ${chunkIndex + 1}`);
+          };
+
+          request.ontimeout = function () {
+            console.error(`Timeout error while uploading chunk ${chunkIndex + 1}`);
+            alert(`Timeout error while uploading chunk ${chunkIndex + 1}`);
+          };
+
+          request.send(formData);
+        }
+
+        // Start uploading the first chunk or the whole file
+        uploadChunk(currentChunkIndex);
+      }
+
+      // Start uploading the first file
+      if (files.length > 0) {
+        uploadFile(files[0], 0);
+      }
+    });
+  </script>
+</body>
+</html>
