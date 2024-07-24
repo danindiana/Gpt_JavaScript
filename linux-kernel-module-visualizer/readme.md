@@ -207,3 +207,70 @@ npm-debug.log
 3. Push the local repository to GitHub.
 
 This setup provides a clear separation between server-side and client-side code, making the project easier to understand and maintain.
+
+
+Deploying the Linux Kernel Module Visualization tool to a web server involves several steps, including preparing the application for production, choosing a deployment platform, and setting up the server. Here's a step-by-step guide focusing on deploying to a generic Linux server and using a cloud platform like Heroku for simplicity.
+
+### Preparing the Application
+
+1. **Ensure Production Readiness**: 
+   - Make sure your application handles errors gracefully.
+   - Ensure all dependencies are correctly listed in your `package.json`.
+   - Add a `start` script in `package.json` if not already present: `"start": "node server/server.js"`.
+
+2. **Environment Configuration**:
+   - Configure your application to use environment variables for settings like the port number. For Node.js, you can use the `dotenv` package to manage environment variables.
+
+### Deployment Option 1: Generic Linux Server
+
+1. **Server Setup**:
+   - Rent a Linux server from a provider like DigitalOcean, Linode, or AWS EC2.
+   - SSH into your server.
+
+2. **Install Node.js**:
+   - Install Node.js on the server. You can use Node Version Manager (nvm) for easier management of Node.js versions.
+
+3. **Copy Your Project**:
+   - Use `scp` or a Git clone command to transfer your project files to the server.
+
+4. **Install Dependencies**:
+   - Run `npm install` in your project directory on the server.
+
+5. **Set Environment Variables**:
+   - Set necessary environment variables, such as `PORT`.
+
+6. **Start Your Application**:
+   - Use a process manager like PM2 to start your application: `pm2 start npm --name "kernel-visualizer" -- start`.
+   - PM2 will keep your app running in the background and restart it if it crashes.
+
+7. **Reverse Proxy Setup**:
+   - Install and configure Nginx or Apache as a reverse proxy to forward requests to your Node.js app.
+
+8. **Secure Your Application**:
+   - Set up HTTPS using Let's Encrypt.
+
+### Deployment Option 2: Heroku
+
+1. **Heroku Setup**:
+   - Create a Heroku account if you don't have one.
+   - Install the Heroku CLI and log in.
+
+2. **Prepare Your App**:
+   - Ensure your application listens on the port provided by Heroku via `process.env.PORT`.
+   - Make sure your `package.json` has a `start` script.
+
+3. **Create a Heroku Application**:
+   - Run `heroku create` in your project directory.
+
+4. **Deploy Your Application**:
+   - Commit your changes to Git.
+   - Deploy your application to Heroku with `git push heroku master`.
+
+5. **Open Your Application**:
+   - Open your application in a browser with `heroku open`.
+
+Heroku automatically handles many deployment tasks, such as setting up the server, SSL certificates, and environment variables, making it a simpler option for quick deployments.
+
+### Note
+
+For both options, ensure your server environment has access to run the `lsmod` command and that your application has the necessary permissions. This might require additional configuration or running your application with elevated privileges, which is generally not recommended for web applications due to security concerns.
