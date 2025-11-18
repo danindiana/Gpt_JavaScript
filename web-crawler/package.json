@@ -1,0 +1,31 @@
+{
+  "name": "web-crawler",
+  "version": "2.0.0",
+  "description": "An intelligent web crawler that recursively scrapes websites and extracts text content with cache management",
+  "main": "crawler.js",
+  "scripts": {
+    "start": "node crawler.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "web",
+    "crawler",
+    "scraper",
+    "cheerio",
+    "axios",
+    "html-to-text",
+    "web-scraping"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0",
+    "prompt-sync": "^4.2.0",
+    "sanitize-filename": "^1.6.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

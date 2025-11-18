@@ -1,0 +1,36 @@
+{
+  "name": "linux-kernel-module-visualizer",
+  "version": "1.0.0",
+  "description": "Interactive visualization of Linux kernel modules and their dependencies using Node.js and vis.js",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "linux",
+    "kernel",
+    "modules",
+    "visualization",
+    "lsmod",
+    "vis.js",
+    "graph",
+    "dependencies"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "os": [
+    "linux"
+  ]
+}
