@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Kernel Module Visualizer</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #333;
+            opacity: 0.7;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        #mynetwork {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            height: 700px;
+        }
+
+        .error {
+            background: #ff4444;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading {
+            background: #4CAF50;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .module-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .info-item {
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            #mynetwork {
+                height: 500px;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐧 Linux Kernel Module Visualizer</h1>
+            <p class="subtitle">Interactive visualization of kernel modules and their dependencies</p>
+        </header>
+
+        <div class="controls">
+            <button id="refresh-btn">🔄 Refresh Data</button>
+            <button id="fit-btn">📐 Fit to Screen</button>
+            <button id="hierarchical-btn">🌳 Hierarchical Layout</button>
+            <button id="physics-btn">⚡ Toggle Physics</button>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Total Modules</div>
+                    <div class="stat-value" id="total-modules">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Dependencies</div>
+                    <div class="stat-value" id="total-deps">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <span class="spinner"></span>
+            Loading kernel modules...
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="mynetwork"></div>
+
+        <div id="info-panel" class="info-panel" style="display: none;">
+            <h3>Module Information</h3>
+            <div id="module-info" class="module-info"></div>
+        </div>
+    </div>
+
+    <script>
+        let network = null;
+        let physicsEnabled = true;
+        let hierarchicalLayout = false;
+
+        // Fetch and visualize kernel modules
+        async function loadModules() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const refreshBtn = document.getElementById('refresh-btn');
+
+            try {
+                loadingEl.style.display = 'block';
+                errorEl.style.display = 'none';
+                refreshBtn.disabled = true;
+
+                const response = await fetch('/api/modules');
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to fetch modules');
+                }
+
+                const data = result.data;
+                visualizeModules(data);
+
+                // Update stats
+                document.getElementById('total-modules').textContent = data.length;
+                const totalDeps = data.reduce((sum, mod) => sum + mod.usedBy.length, 0);
+                document.getElementById('total-deps').textContent = totalDeps;
+
+            } catch (error) {
+                console.error('Error fetching module data:', error);
+                errorEl.textContent = `Error: ${error.message}. This tool requires Linux with lsmod access.`;
+                errorEl.style.display = 'block';
+            } finally {
+                loadingEl.style.display = 'none';
+                refreshBtn.disabled = false;
+            }
+        }
+
+        // Visualize modules using vis.js
+        function visualizeModules(data) {
+            const nodes = [];
+            const edges = [];
+            const nodeMap = new Set();
+
+            // Create nodes and edges
+            data.forEach(module => {
+                // Add node if not already added
+                if (!nodeMap.has(module.name)) {
+                    nodes.push({
+                        id: module.name,
+                        label: module.name,
+                        title: `${module.name}\nSize: ${(module.size / 1024).toFixed(2)} KB\nUsed by: ${module.used} processes`,
+                        size: Math.max(10, Math.min(50, module.size / 1000)),
+                        color: {
+                            background: module.usedBy.length > 0 ? '#4CAF50' : '#2196F3',
+                            border: '#1976D2'
+                        }
+                    });
+                    nodeMap.add(module.name);
+                }
+
+                // Create edges for dependencies
+                module.usedBy.forEach(dep => {
+                    if (dep && dep.trim()) {
+                        // Add dependency node if not exists
+                        if (!nodeMap.has(dep)) {
+                            nodes.push({
+                                id: dep,
+                                label: dep,
+                                title: dep,
+                                color: {
+                                    background: '#FF9800',
+                                    border: '#F57C00'
+                                }
+                            });
+                            nodeMap.add(dep);
+                        }
+
+                        edges.push({
+                            from: module.name,
+                            to: dep,
+                            arrows: 'to',
+                            color: { color: '#848484', highlight: '#667eea' }
+                        });
+                    }
+                });
+            });
+
+            // Create network
+            const container = document.getElementById('mynetwork');
+            const networkData = {
+                nodes: new vis.DataSet(nodes),
+                edges: new vis.DataSet(edges)
+            };
+
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    font: {
+                        size: 14,
+                        color: '#333'
+                    },
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    width: 2,
+                    smooth: {
+                        type: 'continuous'
+                    },
+                    shadow: true
+                },
+                physics: {
+                    enabled: physicsEnabled,
+                    barnesHut: {
+                        gravitationalConstant: -30000,
+                        springConstant: 0.001,
+                        springLength: 200
+                    },
+                    stabilization: {
+                        iterations: 200
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 100,
+                    hideEdgesOnDrag: true
+                },
+                layout: hierarchicalLayout ? {
+                    hierarchical: {
+                        direction: 'UD',
+                        sortMethod: 'directed',
+                        nodeSpacing: 150
+                    }
+                } : undefined
+            };
+
+            network = new vis.Network(container, networkData, options);
+
+            // Click event to show module info
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const module = data.find(m => m.name === nodeId);
+                    if (module) {
+                        showModuleInfo(module);
+                    }
+                }
+            });
+        }
+
+        // Display detailed module information
+        function showModuleInfo(module) {
+            const infoPanel = document.getElementById('info-panel');
+            const moduleInfo = document.getElementById('module-info');
+
+            moduleInfo.innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">Name</div>
+                    <div>${module.name}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Size</div>
+                    <div>${(module.size / 1024).toFixed(2)} KB</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Used By</div>
+                    <div>${module.used} processes</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Dependencies</div>
+                    <div>${module.usedBy.length > 0 ? module.usedBy.join(', ') : 'None'}</div>
+                </div>
+            `;
+
+            infoPanel.style.display = 'block';
+        }
+
+        // Event listeners
+        document.getElementById('refresh-btn').addEventListener('click', loadModules);
+
+        document.getElementById('fit-btn').addEventListener('click', () => {
+            if (network) {
+                network.fit({ animation: true });
+            }
+        });
+
+        document.getElementById('hierarchical-btn').addEventListener('click', () => {
+            hierarchicalLayout = !hierarchicalLayout;
+            loadModules();
+        });
+
+        document.getElementById('physics-btn').addEventListener('click', () => {
+            physicsEnabled = !physicsEnabled;
+            if (network) {
+                network.setOptions({ physics: { enabled: physicsEnabled } });
+            }
+        });
+
+        // Load modules on page load
+        loadModules();
+    </script>
+</body>
+</html>
